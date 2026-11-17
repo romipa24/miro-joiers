@@ -94,8 +94,12 @@
   const results = $('[data-search-results]');
   let index = null;
   const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let indexReq = null;
+  const loadIndex = () => indexReq || (indexReq = fetch('/miro-joiers/search.json').then((r) => r.json()).then((j) => { index = j; render(input.value); }).catch(() => { index = []; }));
+  // Precarga en segundo plano para que la búsqueda sea instantánea
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(() => loadIndex());
   const render = (q) => {
-    if (!index) return;
+    if (!index) { if (q.trim()) results.innerHTML = '<li class="search__empty">Buscando…</li>'; loadIndex(); return; }
     const terms = norm(q).split(/\s+/).filter(Boolean);
     if (!terms.length) { results.innerHTML = ''; return; }
     const hits = index.map((it) => {
@@ -113,7 +117,7 @@
       setMega(false);
       search.hidden = false; requestAnimationFrame(() => search.classList.add('is-open'));
       lock(true); setTimeout(() => input.focus(), 50);
-      if (!index) { try { index = await (await fetch('/miro-joiers/search.json')).json(); render(input.value); } catch { index = []; } }
+      loadIndex();
     } else {
       search.classList.remove('is-open'); lock(false);
       setTimeout(() => { if (!search.classList.contains('is-open')) search.hidden = true; }, 400);
